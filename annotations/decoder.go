@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func Decode(annotation Annotation, target interface{}) error {
+func Decode(annotation *Annotation, target interface{}) error {
 	if target == nil {
 		return errors.New("target cannot be nil")
 	}
@@ -74,7 +74,7 @@ func Decode(annotation Annotation, target interface{}) error {
 	return nil
 }
 
-func getDataValue(annotation Annotation, name *string, numeric *string) (interface{}, error) {
+func getDataValue(annotation *Annotation, name *string, numeric *string) (interface{}, error) {
 	if name == nil && numeric == nil {
 		return nil, errors.New("name and numeric cannot both be nil")
 	}
