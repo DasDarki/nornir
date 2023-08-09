@@ -34,9 +34,10 @@ func (i *AnnotationsInspector) visit(ctx *InspectorContext, node ast.Node) bool 
 			}
 
 			if len(annotationList) > 0 {
-				ctx.Analyzer.AnnotatedPackages = append(ctx.Analyzer.AnnotatedPackages, &annotations.AnnotatedPackage{
+				ctx.Analyzer.AnnotatedFiles = append(ctx.Analyzer.AnnotatedFiles, &annotations.AnnotatedFile{
+					Meta:        annotations.Meta{Package: ctx.Path, FileId: ctx.FileId, Filename: ctx.Filename},
 					Annotations: annotationList,
-					Package:     n,
+					File:        n,
 				})
 			}
 		}
@@ -65,6 +66,7 @@ func (i *AnnotationsInspector) visit(ctx *InspectorContext, node ast.Node) bool 
 
 			if len(annotationList) > 0 {
 				ctx.Analyzer.AnnotatedVars = append(ctx.Analyzer.AnnotatedVars, &annotations.AnnotatedVar{
+					Meta:        annotations.Meta{Package: ctx.Path, FileId: ctx.FileId, Filename: ctx.Filename},
 					Annotations: annotationList,
 					Var:         n,
 				})
@@ -158,6 +160,7 @@ func (i *AnnotationsInspector) visit(ctx *InspectorContext, node ast.Node) bool 
 
 			if len(annotationList) > 0 {
 				ctx.Analyzer.AnnotatedFuncs = append(ctx.Analyzer.AnnotatedFuncs, &annotations.AnnotatedFunc{
+					Meta:        annotations.Meta{Package: ctx.Path, FileId: ctx.FileId, Filename: ctx.Filename},
 					Annotations: annotationList,
 					Func:        n,
 				})

@@ -7,6 +7,8 @@ import (
 type InspectorContext struct {
 	Analyzer *Analyzer
 	Path     string
+	FileId   string
+	Filename string
 	Data     map[string]interface{}
 }
 

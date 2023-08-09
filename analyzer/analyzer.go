@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"crypto/md5"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -10,30 +11,30 @@ import (
 )
 
 type Analyzer struct {
-	output            string
-	prefix            string
-	restlib           string
-	dir               *io.Directory
-	ModName           string
-	Structs           map[string]Struct
-	StructImportMap   map[string][]Import
-	AnnotatedPackages []*annotations.AnnotatedPackage
-	AnnotatedFuncs    []*annotations.AnnotatedFunc
-	AnnotatedVars     []*annotations.AnnotatedVar
+	output          string
+	prefix          string
+	restlib         string
+	dir             *io.Directory
+	ModName         string
+	Structs         map[string]Struct
+	StructImportMap map[string][]Import
+	AnnotatedFiles  []*annotations.AnnotatedFile
+	AnnotatedFuncs  []*annotations.AnnotatedFunc
+	AnnotatedVars   []*annotations.AnnotatedVar
 }
 
 func NewAnalyzer(modname string, dir *io.Directory, outdir string, prefix string, restlib string) *Analyzer {
 	return &Analyzer{
-		output:            outdir,
-		prefix:            prefix,
-		restlib:           restlib,
-		ModName:           modname,
-		dir:               dir,
-		Structs:           make(map[string]Struct),
-		StructImportMap:   make(map[string][]Import),
-		AnnotatedPackages: make([]*annotations.AnnotatedPackage, 0),
-		AnnotatedFuncs:    make([]*annotations.AnnotatedFunc, 0),
-		AnnotatedVars:     make([]*annotations.AnnotatedVar, 0),
+		output:          outdir,
+		prefix:          prefix,
+		restlib:         restlib,
+		ModName:         modname,
+		dir:             dir,
+		Structs:         make(map[string]Struct),
+		StructImportMap: make(map[string][]Import),
+		AnnotatedFiles:  make([]*annotations.AnnotatedFile, 0),
+		AnnotatedFuncs:  make([]*annotations.AnnotatedFunc, 0),
+		AnnotatedVars:   make([]*annotations.AnnotatedVar, 0),
 	}
 }
 
@@ -72,6 +73,8 @@ func (a *Analyzer) parseFile(currentPath string, filename string, fset *token.Fi
 	ctx := &InspectorContext{
 		Analyzer: a,
 		Path:     currentPath,
+		FileId:   generateFileId(filename),
+		Filename: filename,
 		Data:     make(map[string]interface{}),
 	}
 
@@ -98,4 +101,9 @@ func (a *Analyzer) parseDirectoriesRecursively(currentPath string, dir *io.Direc
 	}
 
 	return nil
+}
+
+func generateFileId(filename string) string {
+	md5sum := md5.Sum([]byte(filename))
+	return string(md5sum[:])
 }
