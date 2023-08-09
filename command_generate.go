@@ -42,6 +42,7 @@ func onGenerateCommand(ctx *cli.Context) error {
 	}
 
 	generator.Prepare(cfg)
+	generator.GenerateGinCode(analyzer)
 	generator.GenerateTypeScriptDTOs(analyzer)
 
 	return nil

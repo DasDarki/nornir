@@ -9,7 +9,7 @@ import (
 func InitCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "init",
-		Usage:   "Initialize a new negroni configuration",
+		Usage:   "Initialize a new nornir configuration",
 		Aliases: []string{"i"},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -48,7 +48,7 @@ func InitCommand() *cli.Command {
 func onInitCommand(ctx *cli.Context) error {
 	overwrite := ctx.Bool("overwrite")
 	if io.IsConfigExists() && !overwrite {
-		return cli.Exit("Negroni configuration already exists. Use --overwrite to overwrite existing configuration", 1)
+		return cli.Exit("Nornir configuration already exists. Use --overwrite to overwrite existing configuration", 1)
 	}
 
 	restLib := ctx.String("restlib")
