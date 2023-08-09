@@ -68,7 +68,7 @@ func structureApp(a *analyzer.Analyzer) *app {
 					controller := &controller{
 						Dir:    getDirectoryOfFile(file.Meta.Filename),
 						Pack:   file.Meta.Package,
-						Path:   controllerAnnotation.Path,
+						Path:   removeQuotes(controllerAnnotation.Path),
 						Routes: []*route{},
 					}
 					app.ControllerList = append(app.ControllerList, controller)
@@ -100,61 +100,69 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 		if requestMappingAnnotation, ok := funcAnnotation.(*annotations.RequestMappingAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    requestMappingAnnotation.Method,
-				Path:      requestMappingAnnotation.Path,
+				Path:      removeQuotes(requestMappingAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if getAnnotation, ok := funcAnnotation.(*annotations.GetAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "GET",
-				Path:      getAnnotation.Path,
+				Path:      removeQuotes(getAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if postAnnotation, ok := funcAnnotation.(*annotations.PostAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "POST",
-				Path:      postAnnotation.Path,
+				Path:      removeQuotes(postAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if putAnnotation, ok := funcAnnotation.(*annotations.PutAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "PUT",
-				Path:      putAnnotation.Path,
+				Path:      removeQuotes(putAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if deleteAnnotation, ok := funcAnnotation.(*annotations.DeleteAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "DELETE",
-				Path:      deleteAnnotation.Path,
+				Path:      removeQuotes(deleteAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if patchAnnotation, ok := funcAnnotation.(*annotations.PatchAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "PATCH",
-				Path:      patchAnnotation.Path,
+				Path:      removeQuotes(patchAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if headAnnotation, ok := funcAnnotation.(*annotations.HeadAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "HEAD",
-				Path:      headAnnotation.Path,
+				Path:      removeQuotes(headAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		} else if optionsAnnotation, ok := funcAnnotation.(*annotations.OptionsAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
 				Method:    "OPTIONS",
-				Path:      optionsAnnotation.Path,
+				Path:      removeQuotes(optionsAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
 			})
 		}
 	}
+}
+
+func removeQuotes(s string) string {
+	if len(s) > 1 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+
+	return s
 }
 
 func getDirectoryOfFile(filename string) string {
