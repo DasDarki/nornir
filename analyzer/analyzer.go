@@ -5,28 +5,35 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
+	"nornir/annotations"
 	"nornir/io"
 )
 
 type Analyzer struct {
-	output          string
-	prefix          string
-	restlib         string
-	dir             *io.Directory
-	ModName         string
-	Structs         map[string]Struct
-	StructImportMap map[string][]Import
+	output            string
+	prefix            string
+	restlib           string
+	dir               *io.Directory
+	ModName           string
+	Structs           map[string]Struct
+	StructImportMap   map[string][]Import
+	AnnotatedPackages []*annotations.AnnotatedPackage
+	AnnotatedFuncs    []*annotations.AnnotatedFunc
+	AnnotatedVars     []*annotations.AnnotatedVar
 }
 
 func NewAnalyzer(modname string, dir *io.Directory, outdir string, prefix string, restlib string) *Analyzer {
 	return &Analyzer{
-		output:          outdir,
-		prefix:          prefix,
-		restlib:         restlib,
-		ModName:         modname,
-		dir:             dir,
-		Structs:         make(map[string]Struct),
-		StructImportMap: make(map[string][]Import),
+		output:            outdir,
+		prefix:            prefix,
+		restlib:           restlib,
+		ModName:           modname,
+		dir:               dir,
+		Structs:           make(map[string]Struct),
+		StructImportMap:   make(map[string][]Import),
+		AnnotatedPackages: make([]*annotations.AnnotatedPackage, 0),
+		AnnotatedFuncs:    make([]*annotations.AnnotatedFunc, 0),
+		AnnotatedVars:     make([]*annotations.AnnotatedVar, 0),
 	}
 }
 

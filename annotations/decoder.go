@@ -2,11 +2,13 @@ package annotations
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
-func Decode(annotation *Annotation, target interface{}) error {
+func Decode(annotation *Annotation, target interface{}, usage UsageKind) error {
 	if target == nil {
 		return errors.New("target cannot be nil")
 	}
@@ -18,6 +20,10 @@ func Decode(annotation *Annotation, target interface{}) error {
 
 	if annotationDef.GetName() != annotation.Name {
 		return errors.New("annotation name does not match")
+	}
+
+	if !isUsageAllowed(annotationDef.GetUsages(), usage) {
+		return errors.New("annotation usage is not allowed")
 	}
 
 	value := reflect.ValueOf(target).Elem()
@@ -34,7 +40,7 @@ func Decode(annotation *Annotation, target interface{}) error {
 		parts := strings.Split(tag, ",")
 		for _, part := range parts {
 			keyValue := strings.SplitN(part, "=", 2)
-			key, val := keyValue[0], keyValue[1]
+			key, val := strings.TrimSpace(keyValue[0]), strings.TrimSpace(keyValue[1])
 
 			if key != "name" && key != "numeric" && key != "default" {
 				return errors.New("invalid annotation tag")
@@ -60,7 +66,10 @@ func Decode(annotation *Annotation, target interface{}) error {
 			if *defValue == "$empty" {
 				value = getDefaultValueOfKind(fieldType.Type.Kind())
 			} else {
-				value = *defValue // currently only string supported
+				value, err = convertDefaultValueToKind(defValue, fieldType.Type.Kind())
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -68,7 +77,7 @@ func Decode(annotation *Annotation, target interface{}) error {
 	}
 
 	if len(annotation.Data) > 0 {
-		return errors.New("unused data in annotation")
+		return fmt.Errorf("unused data in annotation: %v", annotation.Data)
 	}
 
 	return nil
@@ -159,4 +168,55 @@ func getDefaultValueOfKind(kind reflect.Kind) interface{} {
 	default:
 		return nil
 	}
+}
+
+func convertDefaultValueToKind(value *string, kind reflect.Kind) (interface{}, error) {
+	switch kind {
+	case reflect.String:
+		return *value, nil
+	case reflect.Bool:
+		return *value == "true", nil
+	case reflect.Int:
+		return strconv.Atoi(*value)
+	case reflect.Int8:
+		return strconv.ParseInt(*value, 10, 8)
+	case reflect.Int16:
+		return strconv.ParseInt(*value, 10, 16)
+	case reflect.Int32:
+		return strconv.ParseInt(*value, 10, 32)
+	case reflect.Int64:
+		return strconv.ParseInt(*value, 10, 64)
+	case reflect.Uint:
+		return strconv.ParseUint(*value, 10, 0)
+	case reflect.Uint8:
+		return strconv.ParseUint(*value, 10, 8)
+	case reflect.Uint16:
+		return strconv.ParseUint(*value, 10, 16)
+	case reflect.Uint32:
+		return strconv.ParseUint(*value, 10, 32)
+	case reflect.Uint64:
+		return strconv.ParseUint(*value, 10, 64)
+	case reflect.Uintptr:
+		return strconv.ParseUint(*value, 10, 0)
+	case reflect.Float32:
+		return strconv.ParseFloat(*value, 32)
+	case reflect.Float64:
+		return strconv.ParseFloat(*value, 64)
+	case reflect.Complex64:
+		return strconv.ParseComplex(*value, 64)
+	case reflect.Complex128:
+		return strconv.ParseComplex(*value, 128)
+	default:
+		return nil, errors.New("unsupported kind")
+	}
+}
+
+func isUsageAllowed(usages []UsageKind, usage UsageKind) bool {
+	for _, u := range usages {
+		if u == usage {
+			return true
+		}
+	}
+
+	return false
 }

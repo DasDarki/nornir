@@ -26,8 +26,8 @@ func Parse(annotationCode string) *Annotation {
 		for i, pair := range strings.Split(data, ",") {
 			if strings.Contains(pair, "=") {
 				keyValue := strings.SplitN(pair, "=", 2)
-				key := keyValue[0]
-				value := keyValue[1]
+				key := strings.TrimSpace(keyValue[0])
+				value := strings.TrimSpace(keyValue[1])
 				if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 					arrayValues := strings.Trim(value, "[]")
 					dataMap[key] = strings.Split(arrayValues, ",")
