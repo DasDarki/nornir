@@ -65,6 +65,7 @@ func (a *Analyzer) parseFile(currentPath string, filename string, fset *token.Fi
 	ctx := &InspectorContext{
 		Analyzer: a,
 		Path:     currentPath,
+		Data:     make(map[string]interface{}),
 	}
 
 	ast.Inspect(file, func(node ast.Node) bool {

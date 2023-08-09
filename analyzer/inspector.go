@@ -7,6 +7,7 @@ import (
 type InspectorContext struct {
 	Analyzer *Analyzer
 	Path     string
+	Data     map[string]interface{}
 }
 
 type inspector interface {
