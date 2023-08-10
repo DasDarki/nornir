@@ -59,7 +59,10 @@ func GenerateTypeScriptDTOs(a *analyzer.Analyzer) {
 				continue
 			}
 
-			file.imports = append(file.imports, "import * as "+imp.Name+" from './"+impFilename+"'")
+			importStmt := "import * as " + imp.Name + " from './" + impFilename + "'"
+			if !containsArray(file.imports, importStmt) {
+				file.imports = append(file.imports, importStmt)
+			}
 		}
 	}
 
@@ -181,8 +184,6 @@ func getFieldName(field *ast.Field) string {
 }
 
 func translateGoPrimitivesToTypeScript(primitive string) string {
-	log.Debug("Translating primitive: " + primitive)
-
 	switch primitive {
 	case "int", "int8", "int16", "int32", "int64", "uint", "uint32", "uint64", "uintptr", "float32", "float64", "complex64", "complex128", "byte", "rune":
 		return "number"

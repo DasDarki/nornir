@@ -38,7 +38,7 @@ func InitCommand() *cli.Command {
 				Aliases:  []string{"p"},
 				Usage:    "Prefix for generated files",
 				Required: false,
-				Value:    "_nornir_",
+				Value:    "nornir_",
 			},
 		},
 		Action: onInitCommand,
