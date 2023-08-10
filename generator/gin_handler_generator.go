@@ -258,22 +258,7 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 
 			params = append(params, prepend+"b_"+name)
 
-			var tstype string = ""
-
-			if strings.Contains(typeName, ".") {
-				parts := strings.Split(typeName, ".")
-				pkgName := parts[0]
-				typeName := parts[1]
-				tstype = generateDtoFromSelector(r.Meta.Package, r.Meta.File, pkgName, typeName)
-			} else {
-				possibleStruct := r.Meta.Package + "@" + typeName
-				if i, ok := structCache[possibleStruct]; ok {
-					tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
-				} else {
-					tstype = translateGoPrimitivesToTypeScript(typeName)
-				}
-			}
-
+			tstype := generateDtoFromExpr(param.Type, r.Meta.Package, r.Meta.File)
 			r.Usage.Body = &tstype
 			continue
 		} else if isQueryDefaultDataSource(r) {
@@ -313,22 +298,7 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 
 			params = append(params, prepend+"b_"+name)
 
-			var tstype string = ""
-
-			if strings.Contains(typeName, ".") {
-				parts := strings.Split(typeName, ".")
-				pkgName := parts[0]
-				typeName := parts[1]
-				tstype = generateDtoFromSelector(r.Meta.Package, r.Meta.File, pkgName, typeName)
-			} else {
-				possibleStruct := r.Meta.Package + "@" + typeName
-				if i, ok := structCache[possibleStruct]; ok {
-					tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
-				} else {
-					tstype = translateGoPrimitivesToTypeScript(typeName)
-				}
-			}
-
+			tstype := generateDtoFromExpr(param.Type, r.Meta.Package, r.Meta.File)
 			r.Usage.Body = &tstype
 			continue
 		}
