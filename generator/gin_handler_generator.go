@@ -102,63 +102,73 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 	}
 
 	if retExpr != nil && r.Usage != nil {
-		tstype := ""
-		importMap := collectImportMap(r.Meta.File)
-		importStruct := &analyzer.Struct{
-			Imports: importMap,
-		}
-
-		switch v := retExpr.(type) {
-		case *ast.Ident:
-			possibleStruct := r.Meta.Package + "@" + v.Name
-			if i, ok := structCache[possibleStruct]; ok {
-				tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
-				break
-			}
-
-			tstype = translateGoPrimitivesToTypeScript(v.Name)
-		case *ast.StarExpr:
-			tstype = generateTypeScriptType(v.X, importStruct, r.Meta.Package) + " | null"
-		case *ast.ArrayType:
-			tstype = generateTypeScriptType(v.Elt, importStruct, r.Meta.Package) + "[]"
-		case *ast.MapType:
-			tstype = "Map<" + generateTypeScriptType(v.Key, importStruct, r.Meta.Package) + ", " + generateTypeScriptType(v.Value, importStruct, r.Meta.Package) + ">"
-		case *ast.SelectorExpr:
-			importMap := collectImportMap(r.Meta.File)
-			pkgName := v.X.(*ast.Ident).Name
-			typeName := v.Sel.Name
-
-			var currStruct *analyzer.Struct = nil
-
-			importedPackage, ok := importMap[pkgName]
-			if !ok {
-				log.Debugf("gingen: Failed to find import for %s", pkgName)
-			} else {
-				importedStruct, ok := structCache[importedPackage+"@"+typeName]
-				if !ok {
-					log.Debugf("gingen: Failed to find struct for %s", importedPackage+"@"+typeName)
-				} else {
-					currStruct = &importedStruct
-				}
-			}
-
-			if currStruct != nil {
-				tstype = generateTypeScriptObjectBody(currStruct.Node, currStruct, r.Meta.Package)
-			}
-		case *ast.InterfaceType:
-			tstype = "any"
-		case *ast.StructType:
-			tstype = "(" + generateTypeScriptObjectBody(v, importStruct, r.Meta.Package) + ")"
-		default:
-			log.Debugf("Unknown type: %T", retExpr)
-			tstype = "unknown"
-		}
+		tstype := generateDtoFromExpr(retExpr, r.Meta.Package, r.Meta.File)
 
 		r.Usage.Response = &tstype
 	}
 
 	content = addArray(content, appendToStrings(body, "\t")...)
 	return addArray(content, "}"), strconv
+}
+
+func generateDtoFromExpr(expr ast.Expr, currPackage string, file *ast.File) string {
+	tstype := ""
+	importMap := collectImportMap(file)
+	importStruct := &analyzer.Struct{
+		Imports: importMap,
+	}
+
+	switch v := expr.(type) {
+	case *ast.Ident:
+		possibleStruct := currPackage + "@" + v.Name
+		if i, ok := structCache[possibleStruct]; ok {
+			tstype = generateTypeScriptObjectBody(i.Node, &i, currPackage)
+			break
+		}
+
+		tstype = translateGoPrimitivesToTypeScript(v.Name)
+	case *ast.StarExpr:
+		tstype = generateTypeScriptType(v.X, importStruct, currPackage) + " | null"
+	case *ast.ArrayType:
+		tstype = generateTypeScriptType(v.Elt, importStruct, currPackage) + "[]"
+	case *ast.MapType:
+		tstype = "Map<" + generateTypeScriptType(v.Key, importStruct, currPackage) + ", " + generateTypeScriptType(v.Value, importStruct, currPackage) + ">"
+	case *ast.SelectorExpr:
+		tstype = generateDtoFromSelector(currPackage, file, v.X.(*ast.Ident).Name, v.Sel.Name)
+	case *ast.InterfaceType:
+		tstype = "any"
+	case *ast.StructType:
+		tstype = "(" + generateTypeScriptObjectBody(v, importStruct, currPackage) + ")"
+	default:
+		log.Debugf("Unknown type: %T", expr)
+		tstype = "unknown"
+	}
+
+	return tstype
+}
+
+func generateDtoFromSelector(currPackage string, file *ast.File, pkgName string, typeName string) string {
+	importMap := collectImportMap(file)
+
+	var currStruct *analyzer.Struct = nil
+
+	importedPackage, ok := importMap[pkgName]
+	if !ok {
+		log.Debugf("gingen: Failed to find import for %s", pkgName)
+	} else {
+		importedStruct, ok := structCache[importedPackage+"@"+typeName]
+		if !ok {
+			log.Debugf("gingen: Failed to find struct for %s", importedPackage+"@"+typeName)
+		} else {
+			currStruct = &importedStruct
+		}
+	}
+
+	if currStruct != nil {
+		return generateTypeScriptObjectBody(currStruct.Node, currStruct, currPackage)
+	}
+
+	return "any"
 }
 
 func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool) {
@@ -248,7 +258,23 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 
 			params = append(params, prepend+"b_"+name)
 
-			r.Usage.Body = &name
+			var tstype string = ""
+
+			if strings.Contains(typeName, ".") {
+				parts := strings.Split(typeName, ".")
+				pkgName := parts[0]
+				typeName := parts[1]
+				tstype = generateDtoFromSelector(r.Meta.Package, r.Meta.File, pkgName, typeName)
+			} else {
+				possibleStruct := r.Meta.Package + "@" + typeName
+				if i, ok := structCache[possibleStruct]; ok {
+					tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
+				} else {
+					tstype = translateGoPrimitivesToTypeScript(typeName)
+				}
+			}
+
+			r.Usage.Body = &tstype
 			continue
 		} else if isQueryDefaultDataSource(r) {
 			body = append(body, "q_"+name+" := c.Query(\""+name+"\")")
@@ -287,7 +313,23 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 
 			params = append(params, prepend+"b_"+name)
 
-			r.Usage.Body = &name
+			var tstype string = ""
+
+			if strings.Contains(typeName, ".") {
+				parts := strings.Split(typeName, ".")
+				pkgName := parts[0]
+				typeName := parts[1]
+				tstype = generateDtoFromSelector(r.Meta.Package, r.Meta.File, pkgName, typeName)
+			} else {
+				possibleStruct := r.Meta.Package + "@" + typeName
+				if i, ok := structCache[possibleStruct]; ok {
+					tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
+				} else {
+					tstype = translateGoPrimitivesToTypeScript(typeName)
+				}
+			}
+
+			r.Usage.Body = &tstype
 			continue
 		}
 	}
