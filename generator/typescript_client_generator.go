@@ -26,13 +26,13 @@ func GenerateTypeScriptClient(usages []usage) {
 	for _, u := range usages {
 		name := createName(&u)
 
+		body = append(body, "", "")
+
 		if u.Response != nil {
-			body = append(body, "")
 			body = append(body, fmt.Sprintf("export type %sResponse = %s;", name, *u.Response))
 		}
 
 		if u.Body != nil {
-			body = append(body, "")
 			body = append(body, fmt.Sprintf("export type %sBody = %s;", name, *u.Body))
 		}
 
