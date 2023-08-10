@@ -9,6 +9,12 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 	strconv := false
 	url := r.Path
 	if c != nil {
+		url = strings.TrimPrefix(url, "/")
+
+		if !strings.HasSuffix(c.Path, "/") {
+			c.Path += "/"
+		}
+
 		url = c.Path + url
 	}
 
@@ -20,6 +26,7 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 	body := make([]string, 0)
 	results := make([]string, 0)
 	resultVars := make([]string, 0)
+	var retExpr ast.Expr
 
 	for _, ret := range r.Signature.Results.List {
 		switch v := ret.Type.(type) {
@@ -34,10 +41,12 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 			default:
 				results = append(results, "any")
 				resultVars = append(resultVars, "res")
+				retExpr = v
 			}
 		default:
 			results = append(results, "any")
 			resultVars = append(resultVars, "res")
+			retExpr = v
 		}
 	}
 
@@ -89,6 +98,11 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 		panic("Too many return values")
 	}
 
+	if retExpr != nil && r.Usage != nil {
+		tstype := generateTypeScriptType(retExpr)
+		r.Usage.Response = &tstype
+	}
+
 	content = addArray(content, appendToStrings(body, "\t")...)
 	return addArray(content, "}"), strconv
 }
@@ -97,6 +111,16 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 	body := []string{}
 	params := []string{}
 	usedStrconv := false
+
+	r.Usage = &usage{
+		FullPath: fullurl,
+		Method:   r.Method,
+		Name:     r.Funcname,
+		Params:   []string{},
+		Header:   []string{},
+		Query:    map[string]string{},
+		Body:     nil,
+	}
 
 	for _, param := range r.Signature.Params.List {
 		name := param.Names[0].Name
@@ -116,6 +140,8 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			body = append(body, "")
 
 			params = append(params, "p_"+name)
+
+			r.Usage.Params = append(r.Usage.Params, name)
 			continue
 		}
 
@@ -127,10 +153,13 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			body = append(body, "}")
 			body = append(body, "")
 
-			body = append(body, getConvertCodeForQuery(typeName, "q_"+name, "qc_"+name)...)
+			convCode, jsType := getConvertCodeForQuery(typeName, "q_"+name, "qc_"+name)
+			body = append(body, convCode...)
 			usedStrconv = true
 
 			params = append(params, "qc_"+name)
+
+			r.Usage.Query[name[5:]] = jsType
 			continue
 		} else if strings.HasPrefix(name, "header") {
 			body = append(body, "h_"+name+" := c.GetHeader(\""+name[6:]+"\")")
@@ -141,6 +170,8 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			body = append(body, "")
 
 			params = append(params, "h_"+name)
+
+			r.Usage.Header = append(r.Usage.Header, name[6:])
 			continue
 		} else if strings.HasPrefix(name, "body") {
 			isPtr := false
@@ -162,6 +193,8 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			}
 
 			params = append(params, prepend+"b_"+name)
+
+			r.Usage.Body = &name
 			continue
 		} else if isQueryDefaultDataSource(r) {
 			body = append(body, "q_"+name+" := c.Query(\""+name+"\")")
@@ -171,10 +204,13 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			body = append(body, "}")
 			body = append(body, "")
 
-			body = append(body, getConvertCodeForQuery(typeName, "q_"+name, "qc_"+name)...)
+			convCode, jsType := getConvertCodeForQuery(typeName, "q_"+name, "qc_"+name)
+			body = append(body, convCode...)
 			usedStrconv = true
 
 			params = append(params, "qc_"+name)
+
+			r.Usage.Query[name[5:]] = jsType
 			continue
 		} else if isBodyDefaultDataSource(r) {
 			isPtr := false
@@ -196,6 +232,8 @@ func generatePreHandlerCode(r *route, fullurl string) ([]string, []string, bool)
 			}
 
 			params = append(params, prepend+"b_"+name)
+
+			r.Usage.Body = &name
 			continue
 		}
 	}
@@ -236,25 +274,25 @@ func simplifyType(t ast.Expr) string {
 	}
 }
 
-func getConvertCodeForQuery(t string, inParam string, outParam string) []string {
+func getConvertCodeForQuery(t string, inParam string, outParam string) ([]string, string) {
 	if t == "string" {
-		return []string{outParam + " := " + inParam}
+		return []string{outParam + " := " + inParam}, "string"
 	}
 
 	if t == "int" {
-		return []string{outParam + ", err := strconv.Atoi(" + inParam + ")", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}
+		return []string{outParam + ", err := strconv.Atoi(" + inParam + ")", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}, "number"
 	}
 
 	if t == "int64" {
-		return []string{outParam + ", err := strconv.ParseInt(" + inParam + ", 10, 64)", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}
+		return []string{outParam + ", err := strconv.ParseInt(" + inParam + ", 10, 64)", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}, "number"
 	}
 
 	if t == "float64" {
-		return []string{outParam + ", err := strconv.ParseFloat(" + inParam + ", 64)", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}
+		return []string{outParam + ", err := strconv.ParseFloat(" + inParam + ", 64)", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}, "number"
 	}
 
 	if t == "bool" {
-		return []string{outParam + ", err := strconv.ParseBool(" + inParam + ")", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}
+		return []string{outParam + ", err := strconv.ParseBool(" + inParam + ")", "if err != nil {", "\tc.JSON(http.StatusBadRequest, \"Invalid parameter " + inParam + "\")", "\treturn", "}"}, "boolean"
 	}
 
 	panic("Unsupported type " + t + " for query parameter")

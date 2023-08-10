@@ -32,6 +32,7 @@ type route struct {
 	Path      string        `json:"path"`
 	Signature *ast.FuncType `json:"-"`
 	Funcname  string        `json:"funcname"`
+	Usage     *usage        `json:"usage"`
 }
 
 type group struct {
@@ -42,7 +43,20 @@ type group struct {
 	Routes         []*route      `json:"routes"`
 }
 
-func GenerateGinCode(a *analyzer.Analyzer) {
+type usage struct {
+	FullPath string
+	Method   string
+	Name     string
+	Params   []string
+	Header   []string
+	Query    map[string]string
+	Body     *string
+	Response *string
+}
+
+func GenerateGinCode(a *analyzer.Analyzer) []usage {
+	usages := []usage{}
+
 	currDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -56,7 +70,7 @@ func GenerateGinCode(a *analyzer.Analyzer) {
 
 	for _, group := range groups {
 		log.Debugf("Generating group for package %s", group.Pack)
-		pack, packname := generateGroup(group, a.ModName)
+		pack, packname, groupUsages := generateGroup(group, a.ModName)
 
 		if packname != "main" {
 			imports = append(imports, "\t\""+pack+"\"")
@@ -64,6 +78,8 @@ func GenerateGinCode(a *analyzer.Analyzer) {
 		} else {
 			initCode = append(initCode, "InitializeController(r)")
 		}
+
+		usages = append(usages, groupUsages...)
 	}
 
 	content := []string{
@@ -97,9 +113,13 @@ func GenerateGinCode(a *analyzer.Analyzer) {
 	}
 
 	file.Sync()
+
+	return usages
 }
 
-func generateGroup(group *group, modname string) (string, string) {
+func generateGroup(group *group, modname string) (string, string, []usage) {
+	usages := []usage{}
+
 	packageName := getPackageName(group.Pack)
 	if packageName == modname {
 		packageName = "main"
@@ -130,6 +150,10 @@ func generateGroup(group *group, modname string) (string, string) {
 		if usedStrconv {
 			strconv = true
 		}
+
+		if r.Usage != nil {
+			usages = append(usages, *r.Usage)
+		}
 	}
 
 	for _, c := range group.ControllerList {
@@ -149,6 +173,10 @@ func generateGroup(group *group, modname string) (string, string) {
 
 			if usedStrconv {
 				strconv = true
+			}
+
+			if r.Usage != nil {
+				usages = append(usages, *r.Usage)
 			}
 		}
 	}
@@ -184,7 +212,7 @@ func generateGroup(group *group, modname string) (string, string) {
 
 	file.Sync()
 
-	return group.Pack, packageName
+	return group.Pack, packageName, usages
 }
 
 func generateInitForHandler(r *route, groupName string) string {
@@ -409,11 +437,7 @@ func appendToStrings(array []string, prefix string) []string {
 }
 
 func addArray(array []string, elements ...string) []string {
-	for _, element := range elements {
-		array = append(array, element)
-	}
-
-	return array
+	return append(array, elements...)
 }
 
 func containsArray(array []string, element string) bool {
