@@ -6,6 +6,7 @@ type Meta struct {
 	Package  string
 	FileId   string
 	Filename string
+	File     *ast.File
 }
 
 type AnnotatedFile struct {

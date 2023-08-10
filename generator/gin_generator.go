@@ -33,6 +33,7 @@ type route struct {
 	Signature *ast.FuncType `json:"-"`
 	Funcname  string        `json:"funcname"`
 	Usage     *usage        `json:"usage"`
+	Meta      annotations.Meta
 }
 
 type group struct {
@@ -340,6 +341,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(requestMappingAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if getAnnotation, ok := funcAnnotation.(*annotations.GetAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -349,6 +351,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(getAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if postAnnotation, ok := funcAnnotation.(*annotations.PostAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -358,6 +361,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(postAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if putAnnotation, ok := funcAnnotation.(*annotations.PutAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -367,6 +371,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(putAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if deleteAnnotation, ok := funcAnnotation.(*annotations.DeleteAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -376,6 +381,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(deleteAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if patchAnnotation, ok := funcAnnotation.(*annotations.PatchAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -385,6 +391,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(patchAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if headAnnotation, ok := funcAnnotation.(*annotations.HeadAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -394,6 +401,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(headAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		} else if optionsAnnotation, ok := funcAnnotation.(*annotations.OptionsAnnotation); ok {
 			controller.Routes = append(controller.Routes, &route{
@@ -403,6 +411,7 @@ func addRoutesToController(controller *controller, function *annotations.Annotat
 				Path:      removeQuotes(optionsAnnotation.Path),
 				Signature: function.Func.Type,
 				Funcname:  function.Func.Name.Name,
+				Meta:      function.Meta,
 			})
 		}
 	}

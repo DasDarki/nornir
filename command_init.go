@@ -55,8 +55,8 @@ func onInitCommand(ctx *cli.Context) error {
 	outputDir := ctx.String("output-dir")
 	prefix := ctx.String("prefix")
 
-	if restLib != "axios" && restLib != "fetch" {
-		return cli.Exit("Invalid rest library (axios, fetch)", 1)
+	if restLib != "axios" {
+		return cli.Exit("Invalid rest library (axios)", 1)
 	}
 
 	cfg := &io.Config{

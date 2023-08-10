@@ -2,6 +2,9 @@ package generator
 
 import (
 	"go/ast"
+	"nornir/analyzer"
+	"nornir/log"
+	"strconv"
 	"strings"
 )
 
@@ -99,7 +102,58 @@ func generateHandler(r *route, c *controller) ([]string, bool) {
 	}
 
 	if retExpr != nil && r.Usage != nil {
-		tstype := generateTypeScriptType(retExpr)
+		tstype := ""
+		importMap := collectImportMap(r.Meta.File)
+		importStruct := &analyzer.Struct{
+			Imports: importMap,
+		}
+
+		switch v := retExpr.(type) {
+		case *ast.Ident:
+			possibleStruct := r.Meta.Package + "@" + v.Name
+			if i, ok := structCache[possibleStruct]; ok {
+				tstype = generateTypeScriptObjectBody(i.Node, &i, r.Meta.Package)
+				break
+			}
+
+			tstype = translateGoPrimitivesToTypeScript(v.Name)
+		case *ast.StarExpr:
+			tstype = generateTypeScriptType(v.X, importStruct, r.Meta.Package) + " | null"
+		case *ast.ArrayType:
+			tstype = generateTypeScriptType(v.Elt, importStruct, r.Meta.Package) + "[]"
+		case *ast.MapType:
+			tstype = "Map<" + generateTypeScriptType(v.Key, importStruct, r.Meta.Package) + ", " + generateTypeScriptType(v.Value, importStruct, r.Meta.Package) + ">"
+		case *ast.SelectorExpr:
+			importMap := collectImportMap(r.Meta.File)
+			pkgName := v.X.(*ast.Ident).Name
+			typeName := v.Sel.Name
+
+			var currStruct *analyzer.Struct = nil
+
+			importedPackage, ok := importMap[pkgName]
+			if !ok {
+				log.Debugf("gingen: Failed to find import for %s", pkgName)
+			} else {
+				importedStruct, ok := structCache[importedPackage+"@"+typeName]
+				if !ok {
+					log.Debugf("gingen: Failed to find struct for %s", importedPackage+"@"+typeName)
+				} else {
+					currStruct = &importedStruct
+				}
+			}
+
+			if currStruct != nil {
+				tstype = generateTypeScriptObjectBody(currStruct.Node, currStruct, r.Meta.Package)
+			}
+		case *ast.InterfaceType:
+			tstype = "any"
+		case *ast.StructType:
+			tstype = "(" + generateTypeScriptObjectBody(v, importStruct, r.Meta.Package) + ")"
+		default:
+			log.Debugf("Unknown type: %T", retExpr)
+			tstype = "unknown"
+		}
+
 		r.Usage.Response = &tstype
 	}
 
@@ -296,4 +350,24 @@ func getConvertCodeForQuery(t string, inParam string, outParam string) ([]string
 	}
 
 	panic("Unsupported type " + t + " for query parameter")
+}
+
+func collectImportMap(file *ast.File) map[string]string {
+	importMap := make(map[string]string)
+
+	for _, imp := range file.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			panic(err)
+		}
+
+		if imp.Name != nil {
+			importMap[imp.Name.Name] = path
+		} else {
+			parts := strings.Split(path, "/")
+			importMap[parts[len(parts)-1]] = path
+		}
+	}
+
+	return importMap
 }

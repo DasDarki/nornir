@@ -24,8 +24,9 @@ func (i *StructInspector) visit(ctx *InspectorContext, node ast.Node) bool {
 
 			structPath := ctx.Path + "@" + typeSpec.Name.Name
 			ctx.Analyzer.Structs[structPath] = Struct{
-				Node: structType,
-				Name: typeSpec.Name.Name,
+				Node:    structType,
+				Name:    typeSpec.Name.Name,
+				Imports: make(map[string]string),
 			}
 		}
 	}
@@ -56,6 +57,17 @@ func (i *StructInspector) visit(ctx *InspectorContext, node ast.Node) bool {
 func (i *StructInspector) finish(a *Analyzer) error {
 	for structPath, cachedStruct := range a.Structs {
 		log.Debugf("Found struct at %s (%s)", structPath, cachedStruct.Name)
+
+		parts := strings.Split(structPath, "@")
+		pkgPath := parts[0]
+
+		for pkgPath2, imports := range a.StructImportMap {
+			if pkgPath2 == pkgPath {
+				for _, importDecl := range imports {
+					cachedStruct.Imports[importDecl.Name] = importDecl.Path
+				}
+			}
+		}
 	}
 
 	for structPath, imports := range a.StructImportMap {
