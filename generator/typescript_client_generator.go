@@ -98,6 +98,13 @@ func GenerateTypeScriptClient(usages []usage) {
 		}
 
 		body = append(body, "    });")
+
+		if u.Response != nil {
+			body = append(body, fmt.Sprintf("    return response.data as %sResponse;", name))
+		} else {
+			body = append(body, "    return;")
+		}
+
 		body = append(body, "  } catch (e) {")
 		body = append(body, "    if (e.response) {")
 		body = append(body, "      throw new RestError(e.response.data.message, e.response.status, e.response.data);")
@@ -105,14 +112,6 @@ func GenerateTypeScriptClient(usages []usage) {
 		body = append(body, "      throw e;")
 		body = append(body, "    }")
 		body = append(body, "  }")
-		body = append(body, "")
-
-		if u.Response != nil {
-			body = append(body, fmt.Sprintf("  return response.data as %sResponse;", name))
-		} else {
-			body = append(body, "  return;")
-		}
-
 		body = append(body, "}")
 	}
 
